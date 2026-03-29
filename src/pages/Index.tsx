@@ -1,6 +1,6 @@
 import { useState, useCallback } from "react";
 import Icon from "@/components/ui/icon";
-import { AppSection, FurnitureItem, SavedPlan, INITIAL_PLANS, ANALYSIS_STEPS } from "@/components/plan/types";
+import { AppSection, FurnitureItem, SavedPlan, RoomDimensions, INITIAL_PLANS, ANALYSIS_STEPS, DEFAULT_ROOM_DIMENSIONS } from "@/components/plan/types";
 import { UploadSection, AnalysisSection } from "@/components/plan/UploadAnalysisSection";
 import { EditorSection } from "@/components/plan/EditorSection";
 import { GallerySection, ExportSection } from "@/components/plan/GalleryExportSection";
@@ -23,6 +23,7 @@ export default function Index() {
     id: string; startX: number; startY: number; origX: number; origY: number;
   } | null>(null);
   const [savedPlans] = useState<SavedPlan[]>(INITIAL_PLANS);
+  const [roomDimensions, setRoomDimensions] = useState<RoomDimensions>(DEFAULT_ROOM_DIMENSIONS);
 
   const runAnalysis = useCallback(() => {
     setSection("analysis");
@@ -114,6 +115,8 @@ export default function Index() {
             setSelectedItem={setSelectedItem}
             draggingItem={draggingItem}
             setDraggingItem={setDraggingItem}
+            roomDimensions={roomDimensions}
+            setRoomDimensions={setRoomDimensions}
           />
         )}
 
@@ -127,7 +130,7 @@ export default function Index() {
         )}
 
         {section === "export" && (
-          <ExportSection furniture={furniture} />
+          <ExportSection furniture={furniture} roomDimensions={roomDimensions} />
         )}
       </main>
     </div>

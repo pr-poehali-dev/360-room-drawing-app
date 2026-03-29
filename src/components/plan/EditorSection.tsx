@@ -1,6 +1,6 @@
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 import Icon from "@/components/ui/icon";
-import { FurnitureItem, FURNITURE_CATALOG, ROOM_W, ROOM_H, ROOM_SCALE } from "./types";
+import { FurnitureItem, FURNITURE_CATALOG, ROOM_W, ROOM_H, RoomDimensions, DEFAULT_ROOM_DIMENSIONS } from "./types";
 
 interface EditorSectionProps {
   furniture: FurnitureItem[];
@@ -9,6 +9,8 @@ interface EditorSectionProps {
   setSelectedItem: (id: string | null) => void;
   draggingItem: { id: string; startX: number; startY: number; origX: number; origY: number } | null;
   setDraggingItem: React.Dispatch<React.SetStateAction<{ id: string; startX: number; startY: number; origX: number; origY: number } | null>>;
+  roomDimensions: RoomDimensions;
+  setRoomDimensions: React.Dispatch<React.SetStateAction<RoomDimensions>>;
 }
 
 export function EditorSection({
@@ -18,9 +20,41 @@ export function EditorSection({
   setSelectedItem,
   draggingItem,
   setDraggingItem,
+  roomDimensions,
+  setRoomDimensions,
 }: EditorSectionProps) {
-  const roomAreaReal = (ROOM_W * ROOM_SCALE) * (ROOM_H * ROOM_SCALE);
+  const [dimInput, setDimInput] = useState({ width: String(roomDimensions.width), height: String(roomDimensions.height) });
+  const [dimEditing, setDimEditing] = useState(false);
+
+  const scaleX = ROOM_W / roomDimensions.width;
+  const scaleY = ROOM_H / roomDimensions.height;
+
+  const roomAreaReal = roomDimensions.width * roomDimensions.height;
   const furnitureArea = furniture.reduce((sum, f) => sum + f.realW * f.realH, 0);
+
+  const applyDimensions = () => {
+    const newW = Math.max(1, Math.min(50, parseFloat(dimInput.width) || roomDimensions.width));
+    const newH = Math.max(1, Math.min(50, parseFloat(dimInput.height) || roomDimensions.height));
+
+    const oldScaleX = ROOM_W / roomDimensions.width;
+    const oldScaleY = ROOM_H / roomDimensions.height;
+    const newScaleX = ROOM_W / newW;
+    const newScaleY = ROOM_H / newH;
+
+    setFurniture((prev) =>
+      prev.map((f) => ({
+        ...f,
+        x: Math.max(0, Math.min(ROOM_W - (f.realW * newScaleX), (f.x / oldScaleX) * newScaleX)),
+        y: Math.max(0, Math.min(ROOM_H - (f.realH * newScaleY), (f.y / oldScaleY) * newScaleY)),
+        w: f.realW * newScaleX,
+        h: f.realH * newScaleY,
+      }))
+    );
+
+    setRoomDimensions({ width: newW, height: newH });
+    setDimInput({ width: String(newW), height: String(newH) });
+    setDimEditing(false);
+  };
 
   const handleMouseDown = (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
@@ -52,8 +86,10 @@ export function EditorSection({
     const newItem: FurnitureItem = {
       id: `f${Date.now()}`,
       ...cat,
-      x: 80 + Math.random() * 120,
-      y: 60 + Math.random() * 80,
+      w: cat.realW * scaleX,
+      h: cat.realH * scaleY,
+      x: Math.max(0, Math.min(ROOM_W - cat.realW * scaleX, 80 + Math.random() * 120)),
+      y: Math.max(0, Math.min(ROOM_H - cat.realH * scaleY, 60 + Math.random() * 80)),
       rotation: 0,
     };
     setFurniture((prev) => [...prev, newItem]);
@@ -72,7 +108,7 @@ export function EditorSection({
       setFurniture((prev) =>
         prev.map((f) =>
           f.id === selectedItem
-            ? { ...f, rotation: (f.rotation + 90) % 360, w: f.h, h: f.w }
+            ? { ...f, rotation: (f.rotation + 90) % 360, w: f.h, h: f.w, realW: f.realH, realH: f.realW }
             : f
         )
       );
@@ -108,7 +144,7 @@ export function EditorSection({
             style={{
               width: "100%", maxWidth: `${ROOM_W}px`, height: `${ROOM_H}px`, margin: "0 auto",
               backgroundImage: "linear-gradient(rgba(0,229,255,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(0,229,255,0.04) 1px, transparent 1px), linear-gradient(135deg, #0a1628 0%, #0d1f35 100%)",
-              backgroundSize: "20px 20px, 20px 20px, 100% 100%",
+              backgroundSize: `${scaleX}px ${scaleX}px, ${scaleX}px ${scaleX}px, 100% 100%`,
               border: "2px solid rgba(0,229,255,0.2)",
               boxShadow: "0 0 40px rgba(0,229,255,0.08), inset 0 0 40px rgba(0,0,0,0.2)",
               cursor: draggingItem ? "grabbing" : "default",
@@ -119,7 +155,12 @@ export function EditorSection({
             onClick={() => setSelectedItem(null)}
           >
             <div className="absolute top-3 left-3 text-xs text-neon-cyan/40 font-display font-semibold pointer-events-none">
-              {(ROOM_W * ROOM_SCALE).toFixed(1)} × {(ROOM_H * ROOM_SCALE).toFixed(1)} м
+              {roomDimensions.width.toFixed(1)} × {roomDimensions.height.toFixed(1)} м
+            </div>
+
+            {/* Ruler marks */}
+            <div className="absolute bottom-2 right-3 text-[8px] text-neon-cyan/25 pointer-events-none font-display">
+              1 клетка = 1 м
             </div>
 
             {/* Door */}
@@ -157,6 +198,53 @@ export function EditorSection({
 
         {/* Sidebar */}
         <div className="space-y-4">
+
+          {/* Room dimensions input */}
+          <div className={`glass rounded-xl p-4 border transition-colors ${dimEditing ? "border-neon-cyan/30" : "border-white/8"}`}>
+            <h3 className="font-display font-bold text-sm mb-3 flex items-center gap-2">
+              <Icon name="Maximize2" size={14} className="text-neon-cyan" />
+              Размеры помещения
+            </h3>
+            <div className="grid grid-cols-2 gap-2 mb-3">
+              <div>
+                <label className="text-[10px] text-muted-foreground mb-1 block">Длина (м)</label>
+                <input
+                  type="number"
+                  min="1" max="50" step="0.1"
+                  value={dimInput.width}
+                  onChange={(e) => { setDimInput((p) => ({ ...p, width: e.target.value })); setDimEditing(true); }}
+                  onKeyDown={(e) => e.key === "Enter" && applyDimensions()}
+                  className="w-full bg-muted/60 border border-white/10 rounded-lg px-3 py-2 text-sm font-display font-bold text-neon-cyan focus:outline-none focus:border-neon-cyan/50 focus:ring-1 focus:ring-neon-cyan/20 transition-all"
+                />
+              </div>
+              <div>
+                <label className="text-[10px] text-muted-foreground mb-1 block">Ширина (м)</label>
+                <input
+                  type="number"
+                  min="1" max="50" step="0.1"
+                  value={dimInput.height}
+                  onChange={(e) => { setDimInput((p) => ({ ...p, height: e.target.value })); setDimEditing(true); }}
+                  onKeyDown={(e) => e.key === "Enter" && applyDimensions()}
+                  className="w-full bg-muted/60 border border-white/10 rounded-lg px-3 py-2 text-sm font-display font-bold text-neon-violet focus:outline-none focus:border-neon-violet/50 focus:ring-1 focus:ring-neon-violet/20 transition-all"
+                />
+              </div>
+            </div>
+            {dimEditing ? (
+              <button
+                onClick={applyDimensions}
+                className="btn-glow-cyan w-full py-2 rounded-lg text-xs flex items-center justify-center gap-2"
+              >
+                <Icon name="Check" size={13} />
+                Применить размеры
+              </button>
+            ) : (
+              <div className="flex items-center justify-between text-[10px] text-muted-foreground px-1">
+                <span>Площадь: <span className="text-neon-cyan font-bold">{roomAreaReal.toFixed(1)} м²</span></span>
+                <span className="text-white/20">↵ Enter для применения</span>
+              </div>
+            )}
+          </div>
+
           {/* Measurements */}
           <div className="glass rounded-xl p-4 border border-white/8">
             <h3 className="font-display font-bold text-sm mb-3 flex items-center gap-2">
@@ -195,13 +283,14 @@ export function EditorSection({
                 <p className="font-semibold mb-2">{item.label}</p>
                 <div className="text-xs text-muted-foreground space-y-1.5">
                   {[
-                    ["Ширина", `${item.realW} м`],
-                    ["Глубина", `${item.realH} м`],
+                    ["Длина", `${item.realW.toFixed(2)} м`],
+                    ["Ширина", `${item.realH.toFixed(2)} м`],
                     ["Площадь", `${(item.realW * item.realH).toFixed(2)} м²`],
+                    ["% от комнаты", `${Math.round((item.realW * item.realH / roomAreaReal) * 100)}%`],
                     ["Поворот", `${item.rotation}°`],
                   ].map(([l, v]) => (
                     <div key={l} className="flex justify-between">
-                      <span>{l}:</span><span className="text-foreground">{v}</span>
+                      <span>{l}:</span><span className="text-foreground font-medium">{v}</span>
                     </div>
                   ))}
                 </div>

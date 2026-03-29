@@ -1,5 +1,5 @@
 import Icon from "@/components/ui/icon";
-import { FurnitureItem, SavedPlan, ROOM_W, ROOM_H, ROOM_SCALE } from "./types";
+import { FurnitureItem, SavedPlan, RoomDimensions, DEFAULT_ROOM_DIMENSIONS } from "./types";
 
 interface GallerySectionProps {
   savedPlans: SavedPlan[];
@@ -85,10 +85,11 @@ export function GallerySection({ savedPlans, onNewPlan, onEditPlan, onExportPlan
 
 interface ExportSectionProps {
   furniture: FurnitureItem[];
+  roomDimensions?: RoomDimensions;
 }
 
-export function ExportSection({ furniture }: ExportSectionProps) {
-  const roomAreaReal = (ROOM_W * ROOM_SCALE) * (ROOM_H * ROOM_SCALE);
+export function ExportSection({ furniture, roomDimensions = DEFAULT_ROOM_DIMENSIONS }: ExportSectionProps) {
+  const roomAreaReal = roomDimensions.width * roomDimensions.height;
   const furnitureArea = furniture.reduce((sum, f) => sum + f.realW * f.realH, 0);
 
   return (

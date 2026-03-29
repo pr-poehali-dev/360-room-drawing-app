@@ -50,4 +50,13 @@ export const ANALYSIS_STEPS = [
 
 export const ROOM_W = 380;
 export const ROOM_H = 280;
-export const ROOM_SCALE = 0.065;
+
+export interface RoomDimensions {
+  width: number;
+  height: number;
+}
+
+export const DEFAULT_ROOM_DIMENSIONS: RoomDimensions = {
+  width: 5.0,
+  height: 4.0,
+};
